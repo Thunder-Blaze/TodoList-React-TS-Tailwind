@@ -18,13 +18,20 @@ type typeTodoListItem = {
 function Todolist() {
     
     const inputRef = useRef<HTMLInputElement>(null);
+    const tagRef = useRef<HTMLInputElement>(null);
     const [ todoTag, setTodoTag ] = useState<string>('personal');
-    const [ todoFilter, setTodoFilter ] = useState<string>('none');
+    const [ todoFilter, setTodoFilter ] = useState<string>('all');
     const [ userTodoListItems, setUserTodoListItems ] = useState<typeTodoListItem[]>(JSON.parse(localStorage.getItem('TodoListItems') || '[]'));
+    const [ todoTags, setTodoTags ] = useState<string[]>(JSON.parse(localStorage.getItem('userTodoTags') || '[\"personal\", \"work\"]'));
 
     const saveUserTodoListItems = (newData: typeTodoListItem[]) => {
         localStorage.setItem('TodoListItems', JSON.stringify(newData));
         setUserTodoListItems(newData);
+    };
+    
+    const saveUserTodoTags = (newData: string[]) => {
+        localStorage.setItem('userTodoTags', JSON.stringify(newData));
+        setTodoTags(newData);
     };
 
 	let TodoListItems: typeTodoListItem[] = [
@@ -115,7 +122,16 @@ function Todolist() {
 		saveUserTodoListItems(TodoListItems);
 	};
 
-    const todoTags: string[] = JSON.parse(localStorage.getItem('userTodoTags') || '[\"personal\", \"work\"]');
+    const addTodoTag = () => {
+        const tagTitle = tagRef.current?.value.trim() || '';
+        if (tagTitle === '' || (todoTags.findIndex( (elem) => (elem === tagTitle) ) !== -1)) {
+            return
+        }
+        saveUserTodoTags([ ...todoTags, tagTitle ]);
+        if (tagRef.current) {
+            tagRef.current.value = ''; // Clear the input by directly modifying the DOM element
+        }
+    }
 
     const addTodoItem = () => {
         const todoTitle = inputRef.current?.value.trim() || '';
@@ -189,9 +205,9 @@ function Todolist() {
                     ref={inputRef}
                     onKeyDown={(e) => e.key === 'Enter' && addTodoItem()}
                     />
-                    <button className='absolute flex items-center justify-center px-3 py-2 leading-4 dark:bg-red-500 bg-blue-600 text-slate-50 right-1.5 top-1 rounded-lg active:scale-75 transition-all duration-300 plac'>+</button>
+                    <button className='absolute flex items-center justify-center px-3 py-2 leading-4 dark:bg-red-500 bg-blue-600 text-slate-50 right-1.5 top-1 rounded-lg active:scale-75 transition-all duration-300' onClick={addTodoItem}>+</button>
                 </div>
-                <div className='flex gap-2 p-2'>
+                <div className='flex gap-2 p-2 flex-wrap'>
                     <span>Tags &rarr; </span>
                     {todoTags.map((elem, key)=> {
                         return (
@@ -209,13 +225,24 @@ function Todolist() {
                                 </label>
                         )
                     })}
-                    <button>+</button>
+                    <div className='px-3 py-0.5 rounded-full flex gap-1 bg-slate-950/20 dark:bg-slate-950/30 has-[:checked]:bg-blue-600 has-[:checked]:dark:bg-red-500 has-[:checked]:text-slate-50'>
+                        <input
+                            type='text'
+                            className='bg-transparent text-xs w-full max-w-16 outline-none placeholder:text-slate-500 dark:placeholder:text-slate-400'
+                            placeholder='Add Tag...'
+                            onKeyDown={(e) => e.key === 'Enter' && addTodoTag()}
+                            ref={tagRef}
+                        />
+                        <button onClick={addTodoTag}>+</button>
+                    </div>
+                    <button onClick={()=> {saveUserTodoTags(["personal", "work"])}}><TbRepeat /></button>
                 </div>
             </div>
             <div>
                 <div>
-                    Filter By <select className='bg-slate-300 dark:bg-slate-800 p-1 rounded-md ml-2 outline-none accent-red-600' onChange={(e)=>{setTodoFilter(e.target.value)}}>
-                        <option value={"none"} selected>None</option>
+                    Filter By <select className='bg-slate-300 dark:bg-slate-800 p-1 rounded-md ml-2 outline-none accent-red-600' onChange={(e)=>{setTodoFilter(e.target.value)}} defaultValue={"all"}>
+                        <option value={"all"}>All</option>
+                        <option value={"tags"}>Tags</option>
                         <option value={"checked"}>Completed</option>
                         <option value={"pinned"}>Pinned</option>
                         <option value={"recurring"}>Dalies</option>
@@ -223,7 +250,7 @@ function Todolist() {
                 </div>
             </div>
             {
-                ((todoFilter==="none") ? <TagWiseList /> : ((todoFilter==="checked") ? DisplayStatusList(todoFilter) : ((todoFilter==="pinned") ? DisplayStatusList(todoFilter) : DisplayStatusList("recurring"))))
+                ((todoFilter==="tags") ? <TagWiseList /> : ((todoFilter==="checked") ? DisplayStatusList(todoFilter) : ((todoFilter==="pinned") ? DisplayStatusList(todoFilter) : ((todoFilter==="recurring") ? DisplayStatusList(todoFilter) : TodoListItems.map((elem)=>{return createTodoItem(elem)})))))
             }
             {
                 // true ? TodoListItems.filter((todo: typeTodoListItem) => { return todo['checked'] }).map((todo: typeTodoListItem) => { return createTodoItem(todo) })

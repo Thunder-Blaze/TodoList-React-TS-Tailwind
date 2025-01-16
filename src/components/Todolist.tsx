@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { FaCircleCheck, FaRegCircle } from "react-icons/fa6";
 import { IoIosCloseCircle } from "react-icons/io";
 import { TbRepeatOff, TbRepeat } from "react-icons/tb";
@@ -16,9 +16,10 @@ type typeTodoListItem = {
 }
 
 function Todolist() {
-
-    const [ todoInput, setTodoInput ] = useState<string>('');
+    
+    const inputRef = useRef<HTMLInputElement>(null);
     const [ todoTag, setTodoTag ] = useState<string>('personal');
+    const [ todoFilter, setTodoFilter ] = useState<string>('none');
     const [ userTodoListItems, setUserTodoListItems ] = useState<typeTodoListItem[]>(JSON.parse(localStorage.getItem('TodoListItems') || '[]'));
 
     const saveUserTodoListItems = (newData: typeTodoListItem[]) => {
@@ -28,7 +29,7 @@ function Todolist() {
 
 	let TodoListItems: typeTodoListItem[] = [
 		...userTodoListItems
-	]
+	];
 
 	// Utility function to sanitize input
 	const sanitizeInput = (input: string): string => {
@@ -45,14 +46,14 @@ function Todolist() {
 				toggleTodoStatus(todo.id, "checked");
 			}}>
                 <div className='flex relative'>
-                    <div className={`p-2 bg-transparent break-words w-full font-semibold ${todo.checked ? "line-through decoration-2" : ""}`}>
+                    <div className={`p-2 bg-transparent break-words w-full font-medium ${todo.checked ? "line-through decoration-2" : ""}`}>
                         {sanitizeInput(todo.title)}
                     </div>
                 </div>
                 <div className='flex gap-2 p-2 justify-between'>
                     <div className='flex gap-2'>
                         <span>Tags &rarr; </span>
-                        <label className='px-3 py-0.5 max-w-[110px] text-ellipsis overflow-hidden rounded-full bg-slate-950/20 dark:bg-slate-950/30' >
+                        <label className='px-3 py-0.5 max-w-[110px] text-ellipsis overflow-hidden rounded-full bg-blue-600 dark:bg-red-500 text-slate-50' >
                             {todo.tag}
                         </label>
                     </div>
@@ -117,7 +118,7 @@ function Todolist() {
     const todoTags: string[] = JSON.parse(localStorage.getItem('userTodoTags') || '[\"personal\", \"work\"]');
 
     const addTodoItem = () => {
-        const todoTitle = todoInput.trim();
+        const todoTitle = inputRef.current?.value.trim() || '';
         if (todoTitle === '' || todoTag === '') {
             return
         }
@@ -131,46 +132,32 @@ function Todolist() {
             tag: todoTag,
         })
         saveUserTodoListItems(TodoListItems);
-		setTodoInput("");
+        if (inputRef.current) {
+            inputRef.current.value = ''; // Clear the input by directly modifying the DOM element
+        }
     }
 
     const TagWiseList = () => {
         return todoTags.map((tag)=>{
             return (
                 <div key={tag} className='flex flex-col w-full items-center justify-center gap-6'>
-                    <h1 className='text-2xl font-bold'>{tag.charAt(0).toUpperCase()+tag.slice(1)}</h1>
+                    {(TodoListItems.filter((todo: typeTodoListItem) => { return todo.tag===tag }).length > 0) ? <h1 className='text-2xl font-semibold'>{tag.charAt(0).toUpperCase()+tag.slice(1)}</h1> : <></>}
                     {TodoListItems.filter((todo: typeTodoListItem) => { return todo.tag===tag }).map((todo: typeTodoListItem) => { return createTodoItem(todo) })}
                 </div>
             )
         })
     }
 
-    const PinnedList = () => {
+    const DisplayStatusList = (status: 'pinned' | 'checked' | 'recurring') => {
         return (
             <>
-            <h1 className='text-2xl font-bold'>Pinned</h1>
-            {TodoListItems.filter((todo: typeTodoListItem) => { return todo['pinned'] }).map((todo: typeTodoListItem) => { return createTodoItem(todo) })}
+            {(TodoListItems.filter((todo: typeTodoListItem) => { return todo[status] }).length > 0) ? <h1 className='text-2xl font-semibold'>
+                {(status==='checked') ? "Completed" : ((status==='pinned') ? "Pinned" : "Dalies" )}
+            </h1> : <></>}
+            {TodoListItems.filter((todo: typeTodoListItem) => { return todo[status] }).map((todo: typeTodoListItem) => { return createTodoItem(todo) })}
             </>
         );
     }
-
-    // const CheckedList = () => {
-    //     return (
-    //         <>
-    //         <h1 className='text-2xl font-bold'>Completed</h1>
-    //         {TodoListItems.filter((todo: typeTodoListItem) => { return todo['checked'] }).map((todo: typeTodoListItem) => { return createTodoItem(todo) })}
-    //         </>
-    //     );
-    // }
-
-    // const DailyList = () => {
-    //     return (
-    //         <>
-    //         <h1 className='text-2xl font-bold'>Dailies</h1>
-    //         {TodoListItems.filter((todo: typeTodoListItem) => { return todo['recurring'] }).map((todo: typeTodoListItem) => { return createTodoItem(todo) })}
-    //         </>
-    //     );
-    // }
 
     // Handle outside click to close the dropdown
 	useEffect(() => {
@@ -199,8 +186,7 @@ function Todolist() {
                     type="text"
                     className='p-2 pr-14 bg-transparent w-full outline-none placeholder:text-slate-500 dark:placeholder:text-slate-400'
                     placeholder='Add Item...'
-                    value={todoInput}
-                    onChange={(e) => setTodoInput(e.target.value)}
+                    ref={inputRef}
                     onKeyDown={(e) => e.key === 'Enter' && addTodoItem()}
                     />
                     <button className='absolute flex items-center justify-center px-3 py-2 leading-4 dark:bg-red-500 bg-blue-600 text-slate-50 right-1.5 top-1 rounded-lg active:scale-75 transition-all duration-300 plac'>+</button>
@@ -223,10 +209,22 @@ function Todolist() {
                                 </label>
                         )
                     })}
+                    <button>+</button>
                 </div>
             </div>
-            <PinnedList />
-            <TagWiseList />
+            <div>
+                <div>
+                    Filter By <select className='bg-slate-300 dark:bg-slate-800 p-1 rounded-md ml-2 outline-none accent-red-600' onChange={(e)=>{setTodoFilter(e.target.value)}}>
+                        <option value={"none"} selected>None</option>
+                        <option value={"checked"}>Completed</option>
+                        <option value={"pinned"}>Pinned</option>
+                        <option value={"recurring"}>Dalies</option>
+                    </select>
+                </div>
+            </div>
+            {
+                ((todoFilter==="none") ? <TagWiseList /> : ((todoFilter==="checked") ? DisplayStatusList(todoFilter) : ((todoFilter==="pinned") ? DisplayStatusList(todoFilter) : DisplayStatusList("recurring"))))
+            }
             {
                 // true ? TodoListItems.filter((todo: typeTodoListItem) => { return todo['checked'] }).map((todo: typeTodoListItem) => { return createTodoItem(todo) })
                 // : TodoListItems.map((todo: typeTodoListItem) => { return createTodoItem(todo) })
